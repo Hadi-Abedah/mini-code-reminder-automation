@@ -1,5 +1,6 @@
 """Playwright client for the HubSpot dashboard."""
 
+import os
 from datetime import date
 from types import TracebackType
 from typing import Self
@@ -30,6 +31,8 @@ class HubSpotDashboardClient:
         self.page: Page | None = None
 
     def start(self) -> Self:
+        # Store browsers alongside Playwright inside the active virtual environment.
+        os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "0")
         self._playwright = sync_playwright().start()
         self._browser = self._playwright.chromium.launch(headless=self.headless)
         self.context = self._browser.new_context()
