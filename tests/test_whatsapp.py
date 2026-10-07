@@ -20,6 +20,15 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(messages[0]["groupId"], "120363123@g.us")
         self.assertEqual(messages[0]["time"], "8pm")
 
+    def test_mixed_lesson_times_preserve_minutes(self):
+        times = ("5:30pm", "7pm", "8pm", "12:30pm")
+        lessons = [Lesson(date(2026, 10, 7), time, "lesson") for time in times]
+        messages = build_messages(lessons, {"lesson": "123@g.us"})
+        for message, original, expected in zip(messages, times, ("4:30pm", "6pm", "7pm", "11:30am")):
+            self.assertEqual(message["text"], f"Reminder: lesson\nToday, 2026-10-07 at {expected} (Dutch time)")
+            self.assertEqual(message["time"], original)
+        self.assertEqual(len(messages), 4)
+
     def test_empty_lessons_do_not_launch_node(self):
         self.assertEqual(build_messages([], {}), [])
         with patch("whatsapp.subprocess.run") as run:

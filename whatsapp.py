@@ -41,11 +41,12 @@ def build_messages(lessons, groups):
         if key in seen:
             continue
         seen.add(key)
+        time_format = "%I:%M%p" if ":" in lesson.time else "%I%p"
         # Keep the original time in the identity so template edits do not resend reminders.
         messages.append(dict(date=key[0], name=lesson.name, time=lesson.time,
                              groupId=group,
                              text=(f"Reminder: {lesson.name}\nToday, {key[0]} at "
-                                   f"{(datetime.strptime(lesson.time, '%I%p') - timedelta(hours=1)).strftime('%I%p').lstrip('0').lower()} "
+                                   f"{(datetime.strptime(lesson.time, time_format) - timedelta(hours=1)).strftime(time_format).lstrip('0').lower()} "
                                    "(Dutch time)")))
     return messages
 
@@ -64,7 +65,7 @@ def send_messages(messages):
     if not messages:
         print("No mapped lessons to send", flush=True)
         return
-    local_node = ROOT / ".venv/node/bin/node"
+    local_node = ROOT / ".venv/node/bin/node" #code installed node in .venv, but we keep the option to use a system node if available(like my rasperry pi)
     node = os.environ.get("NODE_BINARY") or (str(local_node) if local_node.exists() else shutil.which("node"))
     if not node:
         raise RuntimeError("Node.js is missing; install it or set NODE_BINARY")
