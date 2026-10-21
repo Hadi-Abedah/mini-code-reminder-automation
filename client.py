@@ -9,7 +9,7 @@ from playwright.sync_api import Browser, BrowserContext, Page, Playwright, sync_
 
 from auth import login
 from helpers import Lesson
-from selectors import MOBILE_DAY_CARD, MOBILE_LESSON_CARD
+from selectors import INACTIVE_LESSON_DOT, MOBILE_DAY_CARD, MOBILE_LESSON_CARD
 
 
 class HubSpotDashboardClient:
@@ -45,7 +45,7 @@ class HubSpotDashboardClient:
         login(self.page, self.base_url, self.email, self.password)
 
     def get_todays_lessons(self, today: date | None = None) -> list[Lesson]:
-        """Return every lesson in today's weekday column."""
+        """Return active lessons in today's weekday column."""
         if self.page is None:
             raise RuntimeError("Client is not started; use it as a context manager")
 
@@ -60,7 +60,12 @@ class HubSpotDashboardClient:
 
         lessons: list[Lesson] = []
         for index in range(cards.count()):
-            details = cards.nth(index).locator("p")
+            card = cards.nth(index)
+            details = card.locator("p")
+            if card.locator(INACTIVE_LESSON_DOT).count():
+                name = details.first.inner_text().strip() if details.count() else "unknown lesson"
+                print(f"Skipping inactive lesson (postponed/transferred out): {name}", flush=True)
+                continue
             if details.count() >= 2:
                 lessons.append(
                     Lesson(
