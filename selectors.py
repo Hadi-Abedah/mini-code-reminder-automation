@@ -29,5 +29,6 @@ MOBILE_LESSON_CARD = "div.space-y-2.p-3 > div.rounded-2xl"
 # Status dots for postponed and transferred-out lessons.
 INACTIVE_LESSON_DOT = (
     "span.rounded-full.bg-gray-400, "
+    "span.rounded-full.bg-slate-400, "
     "span.rounded-full.bg-orange-400"
 )
