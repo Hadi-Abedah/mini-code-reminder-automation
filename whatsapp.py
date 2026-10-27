@@ -7,15 +7,16 @@ import re
 import shutil
 import subprocess
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent
 
 
-def cairo_today(now=None):
-    return (now or datetime.now(ZoneInfo("Africa/Cairo"))).astimezone(ZoneInfo("Africa/Cairo")).date()
+def lesson_today(now=None):
+    source_zone = ZoneInfo(os.environ.get("LESSON_TIMEZONE", "Asia/Damascus")) # default to mine LOL
+    return (now or datetime.now(source_zone)).astimezone(source_zone).date()
 
 
 def load_groups(path):
@@ -30,6 +31,8 @@ def load_groups(path):
 
 
 def build_messages(lessons, groups):
+    source_zone = ZoneInfo(os.environ.get("LESSON_TIMEZONE", "Asia/Damascus"))
+    dutch_zone = ZoneInfo("Europe/Amsterdam")
     messages = []
     seen = set()
     for lesson in lessons:
@@ -42,12 +45,20 @@ def build_messages(lessons, groups):
             continue
         seen.add(key)
         time_format = "%I:%M%p" if ":" in lesson.time else "%I%p"
+        parsed_time = datetime.strptime(lesson.time.strip(), time_format).time()
+        source_time = datetime.combine(lesson.day, parsed_time, tzinfo=source_zone)
+        dutch_time = source_time.astimezone(dutch_zone)
+        displayed_time = dutch_time.strftime(time_format).lstrip("0").lower()
+        displayed_date = dutch_time.date().isoformat()
+        if dutch_time.date() == lesson.day:
+            displayed_date = f"Today, {displayed_date}"
         # Keep the original time in the identity so template edits do not resend reminders.
         messages.append(dict(date=key[0], name=lesson.name, time=lesson.time,
                              groupId=group,
-                             text=(f"Reminder: {lesson.name}\nToday, {key[0]} at "
-                                   f"{(datetime.strptime(lesson.time, time_format) - timedelta(hours=1)).strftime(time_format).lstrip('0').lower()} "
-                                   "(Dutch time)")))
+                             text=(f"Reminder: {lesson.name}\n{displayed_date} at "
+                                   f"{displayed_time} "
+                                   "(Dutch time)"
+                                   )))
     return messages
 
 

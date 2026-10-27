@@ -8,7 +8,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from client import HubSpotDashboardClient
-from whatsapp import ROOT, build_messages, cairo_today, load_groups, send_lock, send_messages
+from whatsapp import ROOT, build_messages, lesson_today, load_groups, send_lock, send_messages
 
 load_dotenv(Path(__file__).with_name(".env"))
 
@@ -30,7 +30,7 @@ def main() -> None:
         with HubSpotDashboardClient(email, password, headless=headless) as client:
             try:
                 client.authenticate()
-                lessons = client.get_todays_lessons(today=cairo_today())
+                lessons = client.get_todays_lessons(today=lesson_today())
                 if not lessons:
                     print("No lessons today", flush=True)
                 for lesson in lessons:

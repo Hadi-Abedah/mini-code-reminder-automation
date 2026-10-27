@@ -25,10 +25,19 @@ Copy `.env.example` to `.env` and fill in your credentials, then run:
 
 The Python scraper sends structured lesson data to a Node.js Baileys process.
 Each exact lesson name maps to one WhatsApp group. The default command still
-only prints lessons. Scraping dates use `Africa/Cairo`. WhatsApp messages display
-the dashboard time minus one hour, labeled `Dutch time`. This is a fixed offset,
-not an automatic daylight-saving timezone conversion. Lesson times use the
-dashboard format, such as `6pm`.
+only prints lessons. Dashboard dates and times are interpreted in the source
+IANA timezone configured in `.env` (default: `Asia/Damascus`):
+
+```dotenv
+LESSON_TIMEZONE=Asia/Damascus
+```
+
+Set this to the timezone your dashboard uses, such as `Africa/Cairo`, for another
+user. Today's dashboard date is also selected in that zone. WhatsApp messages
+convert the lesson date and time to `Europe/Amsterdam`, labeled `Dutch time`.
+Daylight saving is handled automatically for the lesson's date, including a
+changed calendar date after conversion. Both `7pm` and `5:30pm` are supported.
+The cron schedule still uses the Raspberry Pi's system timezone.
 
 Node.js 22.23.3 and its bundled npm are installed locally in `.venv/node` on this
 computer. From the project root, make them available in your terminal:
@@ -123,5 +132,5 @@ npm test
 ```
 
 Tests use mocked WhatsApp sending and connections. They cover routing, empty
-results, Cairo date boundaries, dry-run behavior, partial
+results, source-zone date boundaries and Dutch daylight-saving conversions, dry-run behavior, partial
 failures, persistent deduplication, invalid history, and expired sessions.

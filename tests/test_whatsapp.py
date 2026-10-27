@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import subprocess
 import unittest
@@ -7,10 +8,15 @@ from pathlib import Path
 from unittest.mock import patch
 
 from helpers import Lesson
-from whatsapp import build_messages, cairo_today, load_groups, send_messages, send_lock
+from whatsapp import build_messages, lesson_today, load_groups, send_messages, send_lock
 
 
 class RoutingTests(unittest.TestCase):
+    def setUp(self):
+        patcher = patch.dict(os.environ, {"LESSON_TIMEZONE": "Asia/Damascus"})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_routes_exact_names_and_deduplicates(self):
         lesson = Lesson(date(2026, 9, 27), "8pm", "scratch-1-177")
         messages = build_messages([lesson, lesson, Lesson(lesson.day, "9pm", "other")],
@@ -45,9 +51,31 @@ class RoutingTests(unittest.TestCase):
             filename.write_text('{"lesson": "123-456@g.us"}')
             self.assertEqual(load_groups(filename), {"lesson": "123-456@g.us"})
 
-    def test_cairo_date_crosses_utc_midnight_boundary(self):
-        self.assertEqual(cairo_today(datetime(2026, 9, 26, 22, tzinfo=timezone.utc)), date(2026, 9, 27))
-        self.assertEqual(cairo_today(datetime(2026, 1, 26, 22, 30, tzinfo=timezone.utc)), date(2026, 1, 27))
+    def test_source_date_crosses_utc_midnight_boundary(self):
+        self.assertEqual(lesson_today(datetime(2026, 9, 26, 22, tzinfo=timezone.utc)), date(2026, 9, 27))
+        self.assertEqual(lesson_today(datetime(2026, 1, 26, 22, 30, tzinfo=timezone.utc)), date(2026, 1, 27))
+
+    def test_dutch_daylight_saving_uses_lesson_date(self):
+        for day, expected in ((date(2026, 7, 1), "6:30pm"),
+                              (date(2026, 1, 1), "5:30pm"),
+                              (date(2026, 10, 24), "6:30pm"),
+                              (date(2026, 10, 25), "5:30pm")):
+            with self.subTest(day=day):
+                message = build_messages([Lesson(day, "7:30pm", "lesson")], {"lesson": "123@g.us"})[0]
+                self.assertIn(f"at {expected} (Dutch time)", message["text"])
+                self.assertEqual(message["time"], "7:30pm")
+                self.assertEqual(message["date"], day.isoformat())
+
+    def test_conversion_changes_display_date_without_changing_identity(self):
+        message = build_messages([Lesson(date(2026, 1, 1), "12:30am", "lesson")], {"lesson": "123@g.us"})[0]
+        self.assertEqual(message["text"], "Reminder: lesson\n2025-12-31 at 10:30pm (Dutch time)")
+        self.assertEqual(message["date"], "2026-01-01")
+
+    def test_source_timezone_is_configurable(self):
+        with patch.dict(os.environ, {"LESSON_TIMEZONE": "Europe/London"}):
+            message = build_messages([Lesson(date(2026, 1, 1), "7pm", "lesson")], {"lesson": "123@g.us"})[0]
+            self.assertIn("at 8pm (Dutch time)", message["text"])
+            self.assertEqual(lesson_today(datetime(2026, 1, 1, 23, tzinfo=timezone.utc)), date(2026, 1, 1))
 
     def test_subprocess_gets_structured_json(self):
         payload = [{"name": "hello ' \" world"}]
